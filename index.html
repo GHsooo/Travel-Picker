@@ -38,4 +38,317 @@
     }
 
     .card {
-      background:
+      background: white;
+      padding: 20px;
+      border-radius: 18px;
+      margin: 18px 0;
+      box-shadow: 0 4px 20px #18332c08;
+    }
+
+    .muted {
+      color: #60736d;
+      font-size: 14px;
+    }
+
+    .warning {
+      background: #fff5df;
+      color: #785719;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      font: inherit;
+      font-size: 16px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccd8d1;
+      border-radius: 10px;
+      background: white;
+      color: #18332c;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      background: #166354;
+      color: white;
+      cursor: pointer;
+      margin: 6px 6px 0 0;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .secondary {
+      background: #e5eee9;
+      color: #18332c;
+    }
+
+    .danger {
+      background: #fff0ed;
+      color: #973d2c;
+    }
+
+    .wide {
+      width: 100%;
+      margin-top: 16px;
+    }
+
+    .months {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .months label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px;
+      margin: 0;
+      background: #f3f6f4;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .months input {
+      width: auto;
+    }
+
+    .row {
+      padding: 14px 0;
+      border-bottom: 1px solid #e5eee9;
+    }
+
+    .row:last-child {
+      border-bottom: none;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 18px;
+    }
+
+    #result h2 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    #status {
+      min-height: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Where should I go?</h1>
+
+    <p class="muted">
+      Your personal travel draw · Departing from Hong Kong
+    </p>
+
+    <noscript>
+      <p class="warning">
+        This website needs JavaScript for saving destinations and drawing results.
+      </p>
+    </noscript>
+
+    <section class="card">
+      <label for="month">1. Travel month</label>
+
+      <select id="month">
+        <option value="any">Any month</option>
+        <option value="1">January</option>
+        <option value="2">February</option>
+        <option value="3">March</option>
+        <option value="4">April</option>
+        <option value="5">May</option>
+        <option value="6">June</option>
+        <option value="7">July</option>
+        <option value="8">August</option>
+        <option value="9">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
+
+      <label for="haul">2. Flight category</label>
+
+      <select id="haul">
+        <option value="any">Short or long haul</option>
+        <option value="Short-haul">Short-haul</option>
+        <option value="Long-haul">Long-haul</option>
+      </select>
+
+      <p id="count" class="muted">Loading your destinations…</p>
+
+      <button id="draw" class="wide" type="button" disabled>
+        🎲 Pick a destination
+      </button>
+
+      <div id="result" aria-live="polite"></div>
+    </section>
+
+    <details class="card" id="editor">
+      <summary id="editorTitle">Add a destination</summary>
+
+      <form id="form">
+        <label for="name">Destination</label>
+
+        <input
+          id="name"
+          required
+          maxlength="100"
+          placeholder="City, island, or region"
+        >
+
+        <label for="category">Flight category from Hong Kong</label>
+
+        <select id="category" required>
+          <option value="" disabled>Choose short or long haul</option>
+          <option value="Short-haul" selected>Short-haul</option>
+          <option value="Long-haul">Long-haul</option>
+        </select>
+
+        <label for="hours">Flight / journey duration (optional)</label>
+
+        <input
+          id="hours"
+          maxlength="100"
+          placeholder="For example: about 5 hours, direct"
+        >
+
+        <label>Best months — choose at least one</label>
+
+        <div class="months" id="checks">
+          <label><input type="checkbox" name="bestMonth" value="1">Jan</label>
+          <label><input type="checkbox" name="bestMonth" value="2">Feb</label>
+          <label><input type="checkbox" name="bestMonth" value="3">Mar</label>
+          <label><input type="checkbox" name="bestMonth" value="4">Apr</label>
+          <label><input type="checkbox" name="bestMonth" value="5">May</label>
+          <label><input type="checkbox" name="bestMonth" value="6">Jun</label>
+          <label><input type="checkbox" name="bestMonth" value="7">Jul</label>
+          <label><input type="checkbox" name="bestMonth" value="8">Aug</label>
+          <label><input type="checkbox" name="bestMonth" value="9">Sep</label>
+          <label><input type="checkbox" name="bestMonth" value="10">Oct</label>
+          <label><input type="checkbox" name="bestMonth" value="11">Nov</label>
+          <label><input type="checkbox" name="bestMonth" value="12">Dec</label>
+        </div>
+
+        <label for="notes">Notes / source (optional)</label>
+
+        <textarea
+          id="notes"
+          maxlength="2000"
+          placeholder="Why visit, seasonal highlights, or your source"
+        ></textarea>
+
+        <div class="actions">
+          <button type="submit" id="saveButton">
+            Add destination
+          </button>
+
+          <button type="button" id="cancel" class="secondary">
+            Cancel / clear
+          </button>
+        </div>
+      </form>
+
+      <p id="status" class="muted" aria-live="polite"></p>
+    </details>
+
+    <section class="card">
+      <h2>Your destinations</h2>
+
+      <label for="search">Search matching destinations</label>
+
+      <input
+        id="search"
+        type="search"
+        placeholder="Search by name"
+      >
+
+      <p class="muted">
+        This list follows your month and haul filters.
+        Search narrows the displayed list only—it does not affect the draw.
+      </p>
+
+      <div id="list"></div>
+    </section>
+
+    <section class="card" id="legacySection" hidden>
+      <h2>Destinations to reclassify</h2>
+
+      <p class="warning">
+        These entries were previously marked medium-haul.
+        They are excluded from draws.
+        Tap Edit and choose short-haul or long-haul to use them again.
+      </p>
+
+      <div id="legacyList"></div>
+    </section>
+
+    <section class="card">
+      <h2>Back up your list</h2>
+
+      <p class="muted">
+        Your list is saved in this browser on this device only.
+        It does not automatically sync to GitHub or other devices.
+        Clearing browser data can erase it.
+        Export regularly and before changing browsers.
+      </p>
+
+      <div class="actions">
+        <button id="export" class="secondary" type="button">
+          Export backup
+        </button>
+
+        <button id="import" class="secondary" type="button">
+          Import backup
+        </button>
+      </div>
+
+      <input
+        type="file"
+        id="file"
+        accept=".json,application/json"
+        hidden
+      >
+    </section>
+
+    <p class="muted">Travel Picker · Version 2.1</p>
+  </main>
+
+  <script>
+    (function ()
