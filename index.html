@@ -1,37 +1,541 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#166354"><title>Travel Picker</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#f3f6f4;color:#18332c;font-family:system-ui,sans-serif}main{max-width:650px;margin:auto;padding:24px 16px}.card{background:white;padding:20px;border-radius:18px;margin:18px 0}h1{margin-bottom:8px}p{line-height:1.5}.muted{color:#60736d;font-size:14px}label{display:block;margin:12px 0 6px}input,select,textarea,button{font:inherit;font-size:16px}input,select,textarea{width:100%;padding:12px;border:1px solid #ccd8d1;border-radius:9px;background:white}button{border:0;border-radius:9px;padding:12px;background:#166354;color:white;cursor:pointer;margin:6px 6px 0 0}button:disabled{opacity:.4}.secondary{background:#e5eee9;color:#18332c}.danger{background:#fff0ed;color:#973d2c}.wide{width:100%;margin-top:16px}.months{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.months label{display:flex;gap:7px;align-items:center;font-size:14px}.months input{width:auto}.row{border-bottom:1px solid #e5eee9;padding:12px 0}summary{cursor:pointer;font-weight:600}#result h2{font-size:28px}textarea{min-height:80px}</style></head>
-<body><main><h1>Where should I go?</h1><p class="muted">Your personal travel draw · Departing from Hong Kong</p>
-<section class="card"><label for="month">1. Travel month</label>
-<select id="month">
-  <option value="any">Any month</option>
-</select>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#166354">
+  <title>Travel Picker</title>
 
-<label for="haul">2. Flight category</label>
-<select id="haul">
-  <option value="any">Short or long haul</option>
-  <option>Short-haul</option>
-  <option>Long-haul</option>
-</select><p id="count" class="muted"></p><button id="draw" class="wide">🎲 Pick a destination</button><div id="result" aria-live="polite"></div></section>
-<details class="card" id="editor"><summary id="editorTitle">Add a destination</summary><form id="form"><label for="name">Destination</label><input id="name" required maxlength="100"><label for="category">Haul category</label><select id="category"><option>Short-haul</option><option>Medium-haul</option><option>Long-haul</option></select><label for="hours">Flight / journey duration (optional)</label><input id="hours" maxlength="100" placeholder="For example: about 5 hours, direct"><label>Best months — choose at least one</label><div class="months" id="checks"></div><label for="notes">Notes / source (optional)</label><textarea id="notes" maxlength="2000"></textarea><button type="submit" id="saveButton">Add destination</button><button type="button" id="cancel" class="secondary">Cancel / clear</button></form></details>
-<section class="card"><h2>Your destinations</h2><label for="search">Search matching destinations</label><input id="search" type="search" placeholder="Search by name"><p class="muted">The list below follows your haul and month filters. Search only narrows this list, not the draw pool.</p><div id="list"></div></section>
-<section class="card"><h2>Backups</h2><p class="muted">Your list is saved in this browser on this device only. It does not sync to GitHub or other devices. Clearing browser data can erase it. Export regularly and before changing browsers.</p><button id="export" class="secondary">Export backup</button><button id="import" class="secondary">Import backup</button><input type="file" id="file" accept=".json,application/json" hidden></section></main>
-<script>
-const $=id=>document.getElementById(id),months=['January','February','March','April','May','June','July','August','September','October','November','December'],categories=['Short-haul','Medium-haul','Long-haul'],key='travel-picker-v1';let places=[],bag=[],editing=null;
-function valid(p){return p&&typeof p.id==='string'&&typeof p.name==='string'&&p.name.trim()&&categories.includes(p.haul)&&Array.isArray(p.months)&&p.months.length>0&&p.months.every(m=>Number.isInteger(m)&&m>=1&&m<=12)&&typeof p.hours==='string'&&typeof p.notes==='string'}
-try{const data=JSON.parse(localStorage.getItem(key)||'[]');if(!Array.isArray(data)||!data.every(valid))throw Error();places=data}catch(e){alert('Saved data could not be loaded. Import a backup if available.')}
-months.forEach((m,i)=>{let o=document.createElement('option');o.value=i+1;o.textContent=m;$('month').append(o);let l=document.createElement('label'),c=document.createElement('input');c.type='checkbox';c.name='bestMonth';c.value=i+1;l.append(c,document.createTextNode(m.slice(0,3)));$('checks').append(l)});
-function text(tag,value,cls){const e=document.createElement(tag);e.textContent=value;if(cls)e.className=cls;return e}
-function matches(){return places.filter(p=>($('haul').value==='any'||p.haul===$('haul').value)&&($('month').value==='any'||p.months.includes(Number($('month').value))))}
-function describe(p,node){node.append(text('h2',p.name),text('p',p.haul+(p.hours?' · '+p.hours:''),'muted'),text('p','Best months: '+[...p.months].sort((a,b)=>a-b).map(m=>months[m-1]).join(', '),'muted'));if(p.notes)node.append(text('p',p.notes))}
-function resetForm(){editing=null;$('form').reset();$('editorTitle').textContent='Add a destination';$('saveButton').textContent='Add destination'}
-function persist(next){try{localStorage.setItem(key,JSON.stringify(next));places=next;refresh();return true}catch(e){alert('Unable to save. Browser storage may be full or unavailable.');return false}}
-function renderList(){const pool=matches().filter(p=>p.name.toLowerCase().includes($('search').value.toLowerCase().trim()));$('list').replaceChildren();if(!pool.length)$('list').append(text('p',places.length?'No matching destinations. Change your filters or search.':'Your list is empty. Add your first destination above.'));pool.forEach(p=>{const row=text('div','','row');describe(p,row);let edit=text('button','Edit','secondary');edit.onclick=()=>{editing=p.id;$('editor').open=true;$('editorTitle').textContent='Edit destination';$('saveButton').textContent='Save changes';$('name').value=p.name;$('category').value=p.haul;$('hours').value=p.hours;$('notes').value=p.notes;document.querySelectorAll('[name=bestMonth]').forEach(c=>c.checked=p.months.includes(Number(c.value)));$('editor').scrollIntoView({behavior:'smooth',block:'start'})};let del=text('button','Delete','danger');del.onclick=()=>{if(confirm('Delete '+p.name+'?')&&persist(places.filter(x=>x.id!==p.id))&&editing===p.id)resetForm()};row.append(edit,del);$('list').append(row)})}
-function refresh(){bag=[];$('result').replaceChildren();$('draw').textContent='🎲 Pick a destination';const n=matches().length;$('count').textContent=n+' matching destination'+(n===1?'':'s');$('draw').disabled=!n;renderList()}
-$('haul').onchange=refresh;$('month').onchange=refresh;$('search').oninput=renderList;$('cancel').onclick=resetForm;
-$('draw').onclick=()=>{const pool=matches();if(!pool.length)return;if(!bag.length)bag=pool.map(p=>p.id);const id=bag.splice(Math.floor(Math.random()*bag.length),1)[0],p=pool.find(x=>x.id===id);$('result').replaceChildren();describe(p,$('result'));$('result').append(text('p',pool.length===1?'This is the only match.':bag.length?bag.length+' destinations remain in this round.':'Round complete. The next draw starts a new round.','muted'));$('draw').textContent='🎲 Draw again'};
-$('form').onsubmit=e=>{e.preventDefault();const name=$('name').value.trim(),ms=[...document.querySelectorAll('[name=bestMonth]:checked')].map(c=>Number(c.value));if(!name)return alert('Enter a destination name.');if(!ms.length)return alert('Select at least one month.');if(places.some(p=>p.id!==editing&&p.name.toLowerCase()===name.toLowerCase()))return alert('That destination already exists.');const p={id:editing||crypto.randomUUID(),name,haul:$('category').value,months:ms,hours:$('hours').value.trim(),notes:$('notes').value.trim()},next=editing?places.map(x=>x.id===editing?p:x):[...places,p];if(persist(next)){resetForm();alert('Destination saved.')}};
-$('export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(places,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='travel-picker-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
-$('import').onclick=()=>$('file').click();$('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const data=JSON.parse(await f.text());if(!Array.isArray(data)||!data.every(valid)||new Set(data.map(p=>p.id)).size!==data.length)throw Error();if(confirm('Replace your current list with '+data.length+' imported destinations?')&&persist(data))resetForm()}catch(e){alert('Invalid backup file.')}finally{$('file').value=''}};
-refresh();
-</script></body></html>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f3f6f4;
+      color: #18332c;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    main {
+      max-width: 650px;
+      margin: auto;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      font-size: 30px;
+    }
+
+    h2 {
+      font-size: 21px;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 18px;
+      margin: 18px 0;
+      box-shadow: 0 4px 20px #18332c08;
+    }
+
+    .muted {
+      color: #60736d;
+      font-size: 14px;
+    }
+
+    .warning {
+      background: #fff5df;
+      color: #785719;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 6px;
+    }
+
+    input,
+    select,
+    textarea,
+    button {
+      font: inherit;
+      font-size: 16px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccd8d1;
+      border-radius: 10px;
+      background: white;
+      color: #18332c;
+    }
+
+    textarea {
+      min-height: 90px;
+      resize: vertical;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      background: #166354;
+      color: white;
+      cursor: pointer;
+      margin: 6px 6px 0 0;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .secondary {
+      background: #e5eee9;
+      color: #18332c;
+    }
+
+    .danger {
+      background: #fff0ed;
+      color: #973d2c;
+    }
+
+    .wide {
+      width: 100%;
+      margin-top: 16px;
+    }
+
+    .months {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+
+    .months label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px;
+      margin: 0;
+      background: #f3f6f4;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .months input {
+      width: auto;
+    }
+
+    .row {
+      padding: 14px 0;
+      border-bottom: 1px solid #e5eee9;
+    }
+
+    .row:last-child {
+      border-bottom: none;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 18px;
+    }
+
+    #result h2 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    #status {
+      min-height: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <h1>Where should I go?</h1>
+    <p class="muted">
+      Your personal travel draw · Departing from Hong Kong
+    </p>
+
+    <section class="card">
+      <label for="month">1. Travel month</label>
+      <select id="month">
+        <option value="any">Any month</option>
+      </select>
+
+      <label for="haul">2. Flight category</label>
+      <select id="haul">
+        <option value="any">Short or long haul</option>
+        <option value="Short-haul">Short-haul</option>
+        <option value="Long-haul">Long-haul</option>
+      </select>
+
+      <p id="count" class="muted"></p>
+
+      <button id="draw" class="wide" type="button">
+        🎲 Pick a destination
+      </button>
+
+      <div id="result" aria-live="polite"></div>
+    </section>
+
+    <details class="card" id="editor">
+      <summary id="editorTitle">Add a destination</summary>
+
+      <form id="form">
+        <label for="name">Destination</label>
+        <input
+          id="name"
+          required
+          maxlength="100"
+          placeholder="City, island, or region"
+        >
+
+        <label for="category">Flight category from Hong Kong</label>
+        <select id="category" required>
+          <option value="" disabled>Choose short or long haul</option>
+          <option value="Short-haul" selected>Short-haul</option>
+          <option value="Long-haul">Long-haul</option>
+        </select>
+
+        <label for="hours">Flight / journey duration (optional)</label>
+        <input
+          id="hours"
+          maxlength="100"
+          placeholder="For example: about 5 hours, direct"
+        >
+
+        <label>Best months — choose at least one</label>
+        <div class="months" id="checks"></div>
+
+        <label for="notes">Notes / source (optional)</label>
+        <textarea
+          id="notes"
+          maxlength="2000"
+          placeholder="Why visit, seasonal highlights, or your source"
+        ></textarea>
+
+        <div class="actions">
+          <button type="submit" id="saveButton">
+            Add destination
+          </button>
+
+          <button type="button" id="cancel" class="secondary">
+            Cancel / clear
+          </button>
+        </div>
+      </form>
+
+      <p id="status" class="muted" aria-live="polite"></p>
+    </details>
+
+    <section class="card">
+      <h2>Your destinations</h2>
+
+      <label for="search">Search matching destinations</label>
+      <input
+        id="search"
+        type="search"
+        placeholder="Search by name"
+      >
+
+      <p class="muted">
+        This list follows your month and haul filters.
+        Search narrows the displayed list only—it does not affect the draw.
+      </p>
+
+      <div id="list"></div>
+    </section>
+
+    <section class="card" id="legacySection" hidden>
+      <h2>Destinations to reclassify</h2>
+
+      <p class="warning">
+        These entries were previously marked medium-haul.
+        They are excluded from draws. Tap Edit and choose
+        short-haul or long-haul to use them again.
+      </p>
+
+      <div id="legacyList"></div>
+    </section>
+
+    <section class="card">
+      <h2>Back up your list</h2>
+
+      <p class="muted">
+        Your list is saved in this browser on this device only.
+        It does not automatically sync to GitHub or other devices.
+        Clearing browser data can erase it.
+        Export regularly and before changing browsers.
+      </p>
+
+      <div class="actions">
+        <button id="export" class="secondary" type="button">
+          Export backup
+        </button>
+
+        <button id="import" class="secondary" type="button">
+          Import backup
+        </button>
+      </div>
+
+      <input
+        type="file"
+        id="file"
+        accept=".json,application/json"
+        hidden
+      >
+    </section>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+
+    const months = [
+      "January", "February", "March", "April",
+      "May", "June", "July", "August",
+      "September", "October", "November", "December"
+    ];
+
+    const categories = ["Short-haul", "Long-haul"];
+
+    const acceptedCategories = [
+      "Short-haul", "Medium-haul", "Long-haul"
+    ];
+
+    const storageKey = "travel-picker-v1";
+
+    let places = [];
+    let bag = [];
+    let editing = null;
+    let loadFailed = false;
+
+    function validPlace(p) {
+      return Boolean(
+        p &&
+        typeof p.id === "string" &&
+        p.id.length > 0 &&
+        typeof p.name === "string" &&
+        p.name.trim().length > 0 &&
+        acceptedCategories.includes(p.haul) &&
+        Array.isArray(p.months) &&
+        p.months.length > 0 &&
+        p.months.every(
+          m => Number.isInteger(m) && m >= 1 && m <= 12
+        ) &&
+        typeof p.hours === "string" &&
+        typeof p.notes === "string"
+      );
+    }
+
+    function validList(data) {
+      return (
+        Array.isArray(data) &&
+        data.every(validPlace) &&
+        new Set(data.map(p => p.id)).size === data.length
+      );
+    }
+
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem(storageKey) || "[]"
+      );
+
+      if (!validList(saved)) {
+        throw new Error("Invalid saved data");
+      }
+
+      places = saved;
+    } catch (error) {
+      loadFailed = true;
+
+      alert(
+        "Your saved list could not be loaded. " +
+        "Import a backup to recover it. " +
+        "Adding new entries is blocked to avoid overwriting old data."
+      );
+    }
+
+    months.forEach((month, index) => {
+      const option = document.createElement("option");
+      option.value = index + 1;
+      option.textContent = month;
+      $("month").append(option);
+
+      const label = document.createElement("label");
+      const checkbox = document.createElement("input");
+
+      checkbox.type = "checkbox";
+      checkbox.name = "bestMonth";
+      checkbox.value = index + 1;
+
+      label.append(
+        checkbox,
+        document.createTextNode(month.slice(0, 3))
+      );
+
+      $("checks").append(label);
+    });
+
+    function text(tag, value, className) {
+      const element = document.createElement(tag);
+      element.textContent = value;
+
+      if (className) {
+        element.className = className;
+      }
+
+      return element;
+    }
+
+    function matching() {
+      const month = $("month").value;
+      const haul = $("haul").value;
+
+      return places.filter(p =>
+        categories.includes(p.haul) &&
+        (month === "any" || p.months.includes(Number(month))) &&
+        (haul === "any" || p.haul === haul)
+      );
+    }
+
+    function describe(place, container) {
+      const bestMonths = [...new Set(place.months)]
+        .sort((a, b) => a - b)
+        .map(month => months[month - 1])
+        .join(", ");
+
+      container.append(
+        text("h2", place.name),
+        text(
+          "p",
+          place.haul + (place.hours ? " · " + place.hours : ""),
+          "muted"
+        ),
+        text("p", "Best months: " + bestMonths, "muted")
+      );
+
+      if (place.notes) {
+        container.append(text("p", place.notes));
+      }
+    }
+
+    function resetForm() {
+      editing = null;
+      $("form").reset();
+      $("editorTitle").textContent = "Add a destination";
+      $("saveButton").textContent = "Add destination";
+      $("status").textContent = "";
+    }
+
+    function persist(next, recovering = false) {
+      if (loadFailed && !recovering) {
+        alert("Import a backup before changing the list.");
+        return false;
+      }
+
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+        places = next;
+        loadFailed = false;
+        refresh();
+        return true;
+      } catch (error) {
+        alert(
+          "Unable to save. Browser storage may be full or unavailable."
+        );
+        return false;
+      }
+    }
+
+    function startEditing(place) {
+      editing = place.id;
+
+      $("editor").open = true;
+      $("editorTitle").textContent = "Edit destination";
+      $("saveButton").textContent = "Save changes";
+      $("status").textContent = "";
+
+      $("name").value = place.name;
+      $("category").value = categories.includes(place.haul)
+        ? place.haul
+        : "";
+      $("hours").value = place.hours;
+      $("notes").value = place.notes;
+
+      document.querySelectorAll(
+        'input[name="bestMonth"]'
+      ).forEach(checkbox => {
+        checkbox.checked = place.months.includes(
+          Number(checkbox.value)
+        );
+      });
+
+      $("editor").scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }
+
+    function destinationRow(place) {
+      const row = text("div", "", "row");
+      describe(place, row);
+
+      const actions = text("div", "", "actions");
+
+      const editButton = text("button", "Edit", "secondary");
+      editButton.type = "button";
+      editButton.onclick = () => startEditing(place);
+
+      const deleteButton = text("button", "Delete", "danger");
+      deleteButton.type = "button";
+
+      deleteButton.onclick = () => {
+        if (!confirm("Delete " + place.name + "?")) {
+          return;
+        }
+
+        const next = places.filter(p => p.id !== place.id);
+
+        if (persist(next) && editing === place.id) {
+          resetForm();
+        }
+      };
+
+      actions.append(editButton, deleteButton);
+      row.append(actions);
+
+      return row;
+    }
+
+    function renderList() {
+      const search = $("search").value.trim().toLowerCase();
+
+      const visible = matching().filter(p =>
+        p.name.toLowerCase().includes(search)
+      );
+
+      $("list").replaceChildren();
+
+      if (!visible.length) {
+        let message = "No matching destinations. Change
