@@ -351,4 +351,514 @@
   </main>
 
   <script>
-    (function ()
+    (function () {
+      "use strict";
+
+      const $ = id => document.getElementById(id);
+
+      const months = [
+        "January", "February", "March", "April",
+        "May", "June", "July", "August",
+        "September", "October", "November", "December"
+      ];
+
+      const categories = ["Short-haul", "Long-haul"];
+
+      const acceptedCategories = [
+        "Short-haul", "Medium-haul", "Long-haul"
+      ];
+
+      const storageKey = "travel-picker-v1";
+
+      let places = [];
+      let bag = [];
+      let editing = null;
+      let loadFailed = false;
+
+      function validPlace(place) {
+        return Boolean(
+          place &&
+          typeof place.id === "string" &&
+          place.id.length > 0 &&
+          typeof place.name === "string" &&
+          place.name.trim().length > 0 &&
+          acceptedCategories.includes(place.haul) &&
+          Array.isArray(place.months) &&
+          place.months.length > 0 &&
+          place.months.every(
+            month => Number.isInteger(month) &&
+                     month >= 1 &&
+                     month <= 12
+          ) &&
+          typeof place.hours === "string" &&
+          typeof place.notes === "string"
+        );
+      }
+
+      function validList(data) {
+        return (
+          Array.isArray(data) &&
+          data.every(validPlace) &&
+          new Set(data.map(place => place.id)).size === data.length
+        );
+      }
+
+      function createId() {
+        if (
+          window.crypto &&
+          typeof window.crypto.randomUUID === "function"
+        ) {
+          return window.crypto.randomUUID();
+        }
+
+        return (
+          "place-" +
+          Date.now().toString(36) +
+          "-" +
+          Math.random().toString(36).slice(2)
+        );
+      }
+
+      function text(tag, value, className) {
+        const element = document.createElement(tag);
+        element.textContent = value;
+
+        if (className) {
+          element.className = className;
+        }
+
+        return element;
+      }
+
+      function matching() {
+        const month = $("month").value;
+        const haul = $("haul").value;
+
+        return places.filter(place =>
+          categories.includes(place.haul) &&
+          (
+            month === "any" ||
+            place.months.includes(Number(month))
+          ) &&
+          (
+            haul === "any" ||
+            place.haul === haul
+          )
+        );
+      }
+
+      function describe(place, container) {
+        const bestMonths = [...new Set(place.months)]
+          .sort((a, b) => a - b)
+          .map(month => months[month - 1])
+          .join(", ");
+
+        container.append(
+          text("h2", place.name),
+          text(
+            "p",
+            place.haul +
+            (place.hours ? " · " + place.hours : ""),
+            "muted"
+          ),
+          text(
+            "p",
+            "Best months: " + bestMonths,
+            "muted"
+          )
+        );
+
+        if (place.notes) {
+          container.append(text("p", place.notes));
+        }
+      }
+
+      function resetForm() {
+        editing = null;
+        $("form").reset();
+        $("editorTitle").textContent = "Add a destination";
+        $("saveButton").textContent = "Add destination";
+        $("status").textContent = "";
+      }
+
+      function persist(next, recovering = false) {
+        if (loadFailed && !recovering) {
+          alert(
+            "Import a backup before changing the list. " +
+            "This protects any saved data that could not be loaded."
+          );
+          return false;
+        }
+
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(next));
+          places = next;
+          loadFailed = false;
+          refresh();
+          return true;
+        } catch (error) {
+          alert(
+            "Unable to save. " +
+            "Browser storage may be full or unavailable."
+          );
+          return false;
+        }
+      }
+
+      function startEditing(place) {
+        editing = place.id;
+
+        $("editor").open = true;
+        $("editorTitle").textContent = "Edit destination";
+        $("saveButton").textContent = "Save changes";
+        $("status").textContent = "";
+
+        $("name").value = place.name;
+
+        $("category").value = categories.includes(place.haul)
+          ? place.haul
+          : "";
+
+        $("hours").value = place.hours;
+        $("notes").value = place.notes;
+
+        document.querySelectorAll(
+          'input[name="bestMonth"]'
+        ).forEach(checkbox => {
+          checkbox.checked = place.months.includes(
+            Number(checkbox.value)
+          );
+        });
+
+        $("editor").scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+
+      function destinationRow(place) {
+        const row = text("div", "", "row");
+        describe(place, row);
+
+        const actions = text("div", "", "actions");
+
+        const editButton = text(
+          "button",
+          "Edit",
+          "secondary"
+        );
+
+        editButton.type = "button";
+        editButton.onclick = () => startEditing(place);
+
+        const deleteButton = text(
+          "button",
+          "Delete",
+          "danger"
+        );
+
+        deleteButton.type = "button";
+
+        deleteButton.onclick = () => {
+          if (!confirm("Delete " + place.name + "?")) {
+            return;
+          }
+
+          const next = places.filter(
+            item => item.id !== place.id
+          );
+
+          if (persist(next) && editing === place.id) {
+            resetForm();
+          }
+        };
+
+        actions.append(editButton, deleteButton);
+        row.append(actions);
+
+        return row;
+      }
+
+      function renderList() {
+        const search = $("search").value
+          .trim()
+          .toLowerCase();
+
+        const visible = matching().filter(place =>
+          place.name.toLowerCase().includes(search)
+        );
+
+        $("list").replaceChildren();
+
+        if (!visible.length) {
+          let message =
+            "No matching destinations. " +
+            "Change your filters or search.";
+
+          if (loadFailed) {
+            message =
+              "Saved data could not be loaded. " +
+              "Please import a backup.";
+          } else if (!places.length) {
+            message =
+              "Your list is empty. " +
+              "Add your first destination above.";
+          }
+
+          $("list").append(text("p", message));
+        }
+
+        visible.forEach(place => {
+          $("list").append(destinationRow(place));
+        });
+
+        const legacy = places.filter(
+          place => !categories.includes(place.haul)
+        );
+
+        $("legacySection").hidden = legacy.length === 0;
+        $("legacyList").replaceChildren();
+
+        legacy.forEach(place => {
+          $("legacyList").append(destinationRow(place));
+        });
+      }
+
+      function refresh() {
+        bag = [];
+
+        $("result").replaceChildren();
+        $("draw").textContent = "🎲 Pick a destination";
+
+        const count = matching().length;
+
+        $("count").textContent =
+          count +
+          " matching destination" +
+          (count === 1 ? "" : "s");
+
+        $("draw").disabled = count === 0;
+
+        renderList();
+      }
+
+      $("month").onchange = refresh;
+      $("haul").onchange = refresh;
+      $("search").oninput = renderList;
+      $("cancel").onclick = resetForm;
+
+      $("draw").onclick = () => {
+        const pool = matching();
+
+        if (!pool.length) {
+          return;
+        }
+
+        if (!bag.length) {
+          bag = pool.map(place => place.id);
+        }
+
+        const index = Math.floor(
+          Math.random() * bag.length
+        );
+
+        const selectedId = bag.splice(index, 1)[0];
+
+        const selected = pool.find(
+          place => place.id === selectedId
+        );
+
+        $("result").replaceChildren();
+        describe(selected, $("result"));
+
+        let message;
+
+        if (pool.length === 1) {
+          message =
+            "This is the only matching destination.";
+        } else if (bag.length) {
+          message =
+            bag.length +
+            " destinations remain in this round.";
+        } else {
+          message =
+            "Round complete. " +
+            "The next draw starts a new round.";
+        }
+
+        $("result").append(
+          text("p", message, "muted")
+        );
+
+        $("draw").textContent = "🎲 Draw again";
+      };
+
+      $("form").onsubmit = event => {
+        event.preventDefault();
+
+        const name = $("name").value.trim();
+        const haul = $("category").value;
+
+        const selectedMonths = [
+          ...document.querySelectorAll(
+            'input[name="bestMonth"]:checked'
+          )
+        ].map(checkbox => Number(checkbox.value));
+
+        if (!name) {
+          alert("Enter a destination name.");
+          return;
+        }
+
+        if (!categories.includes(haul)) {
+          alert("Choose short-haul or long-haul.");
+          return;
+        }
+
+        if (!selectedMonths.length) {
+          alert("Select at least one best month.");
+          return;
+        }
+
+        const duplicate = places.some(place =>
+          place.id !== editing &&
+          place.name.toLowerCase() === name.toLowerCase()
+        );
+
+        if (duplicate) {
+          alert(
+            "That destination already exists in your list."
+          );
+          return;
+        }
+
+        const wasEditing = editing !== null;
+
+        const place = {
+          id: editing || createId(),
+          name,
+          haul,
+          months: selectedMonths,
+          hours: $("hours").value.trim(),
+          notes: $("notes").value.trim()
+        };
+
+        const next = wasEditing
+          ? places.map(item =>
+              item.id === editing ? place : item
+            )
+          : [...places, place];
+
+        if (persist(next)) {
+          resetForm();
+
+          $("status").textContent = wasEditing
+            ? "Changes saved."
+            : "Destination added.";
+
+          const isVisible = matching().some(
+            item => item.id === place.id
+          );
+
+          if (!isVisible) {
+            $("status").textContent +=
+              " This destination is outside " +
+              "your current filters.";
+          }
+        }
+      };
+
+      $("export").onclick = () => {
+        if (loadFailed) {
+          alert(
+            "Your saved list could not be loaded. " +
+            "Export has been blocked to avoid " +
+            "creating an empty backup."
+          );
+          return;
+        }
+
+        const blob = new Blob(
+          [JSON.stringify(places, null, 2)],
+          { type: "application/json" }
+        );
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "travel-picker-backup.json";
+
+        document.body.append(link);
+        link.click();
+        link.remove();
+
+        setTimeout(
+          () => URL.revokeObjectURL(url),
+          1000
+        );
+      };
+
+      $("import").onclick = () => $("file").click();
+
+      $("file").onchange = async event => {
+        const file = event.target.files[0];
+
+        if (!file) {
+          return;
+        }
+
+        try {
+          const imported = JSON.parse(
+            await file.text()
+          );
+
+          if (!validList(imported)) {
+            throw new Error("Invalid backup");
+          }
+
+          const approved = confirm(
+            "Replace your current list with " +
+            imported.length +
+            " imported destinations? " +
+            "Export your current list first " +
+            "if you want to keep a backup."
+          );
+
+          if (approved && persist(imported, true)) {
+            resetForm();
+            alert("Backup imported.");
+          }
+        } catch (error) {
+          alert(
+            "This file is not a valid Travel Picker backup."
+          );
+        } finally {
+          event.target.value = "";
+        }
+      };
+
+      try {
+        const saved = JSON.parse(
+          localStorage.getItem(storageKey) || "[]"
+        );
+
+        if (!validList(saved)) {
+          throw new Error("Invalid saved data");
+        }
+
+        places = saved;
+      } catch (error) {
+        loadFailed = true;
+
+        $("status").textContent =
+          "Your saved list could not be loaded. " +
+          "Import a backup to recover it. " +
+          "Changes are blocked to protect existing data.";
+      }
+
+      refresh();
+    })();
+  </script>
+</body>
+</html>
